@@ -4,6 +4,7 @@ import SwiftUI
 struct UsagePopoverView: View {
     @Environment(UsageMonitor.self) private var claudeMonitor
     @Environment(CodexUsageMonitor.self) private var codexMonitor
+    @Environment(AntigravityUsageMonitor.self) private var antigravityMonitor
     @Environment(LoginItemManager.self) private var loginItemManager
 
     var body: some View {
@@ -46,6 +47,24 @@ struct UsagePopoverView: View {
 
             Divider()
 
+            providerSection(title: "Antigravity (Gemini)", lastUpdated: antigravityMonitor.lastUpdated) {
+                if let usage = antigravityMonitor.usage {
+                    ForEach(usage.rows) { row in
+                        UsageProgressRow(limit: row)
+                    }
+                } else if let error = antigravityMonitor.lastError {
+                    Text(errorMessage(for: error))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Caricamento…")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Divider()
+
             Toggle("Avvia al login", isOn: $loginItemManager.isEnabled)
                 .toggleStyle(.switch)
 
@@ -54,9 +73,10 @@ struct UsagePopoverView: View {
                     Task {
                         await claudeMonitor.refresh()
                         await codexMonitor.refresh()
+                        await antigravityMonitor.refresh()
                     }
                 }
-                .disabled(claudeMonitor.isRefreshing || codexMonitor.isRefreshing)
+                .disabled(claudeMonitor.isRefreshing || codexMonitor.isRefreshing || antigravityMonitor.isRefreshing)
 
                 Spacer()
 
@@ -70,6 +90,7 @@ struct UsagePopoverView: View {
         .task {
             await claudeMonitor.refresh()
             await codexMonitor.refresh()
+            await antigravityMonitor.refresh()
         }
     }
 
@@ -123,6 +144,19 @@ struct UsagePopoverView: View {
             return "Risposta di Codex non riconosciuta."
         case .timeout:
             return "Codex non ha risposto in tempo."
+        }
+    }
+
+    private func errorMessage(for error: AntigravityUsageError) -> String {
+        switch error {
+        case .antigravityNotInstalled:
+            return "Google Antigravity non è installato."
+        case .processFailed:
+            return "Impossibile connettersi al language server di Antigravity."
+        case .decoding:
+            return "Risposta di Antigravity non riconosciuta."
+        case .timeout:
+            return "Antigravity non ha risposto in tempo."
         }
     }
 }
