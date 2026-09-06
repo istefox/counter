@@ -1,6 +1,6 @@
 ## Status (2026-09-06)
-**Branch:** feat/antigravity-provider (merged to main, PR #3, merge commit 30e6841)
-**Last commit:** e56cab3 — feat(app): add Antigravity (Gemini) usage provider
-**In progress:** All three planned providers are now implemented and merged: Claude Code (PR #1), Codex (PR #2), Antigravity/Gemini (PR #3). Antigravity's mechanism: Nimbalyst has no Gemini CLI code at all — its "Gemini" is entirely Google Antigravity IDE. Attaches to a running `language_server` hub (ps/lsof discovery) or spawns a standalone one, calls `GetUserStatus` over local Connect-RPC/HTTPS, reads `quotaInfo.remainingFraction`/`resetTime` per model. Verified live against the real account (Google AI Plus tier) — fixed a real `Process`+`Pipe` deadlock in the ps/lsof discovery helper (drain pipe before `waitUntilExit()`).
-**Next:** No planned provider work remains. Possible follow-ups: app icon/branding polish, notarization/distribution, or additional per-model breakdown UI.
-**Open decisions:** none
+**Branch:** emdash/slimy-jokes-juggle-rl3y8
+**Last commit:** afa3839 — feat(app): add settings menu, about panel and provider visibility toggles
+**In progress:** Gear-icon settings menu feature complete: Settings window (Generali/Provider tabs), About window, per-provider visibility with polling stop/start. Settings/About use a custom AppKit NSWindow presenter (AppWindowPresenter), not the SwiftUI Settings scene — deliberate, documented in UX-BLUEPRINT.md.
+**Next:** Not committed to PR/push yet. Manual GUI verification of the new gear menu, Settings tabs and About window (per plan's Verifica section) still recommended before merging.
+**Open decisions:** none — RTF review cycle closed with 2 report-only/deferred findings (architectural NSWindow deviation, minor view-level test coverage gap), both accepted.

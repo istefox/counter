@@ -7,6 +7,7 @@ let project = Project(
         base: [
             "SWIFT_VERSION": "6.0",
             "SWIFT_STRICT_CONCURRENCY": "complete",
+            "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         ]
     ),
     targets: [
@@ -26,7 +27,23 @@ let project = Project(
             ),
             sources: ["AgentLimits/Sources/**"],
             resources: ["AgentLimits/Resources/**"],
-            dependencies: []
+            entitlements: .file(path: "AgentLimits/AgentLimits.entitlements"),
+            dependencies: [],
+            settings: .settings(
+                base: [
+                    "DEVELOPMENT_TEAM": "T7H24G7BFW",
+                ],
+                configurations: [
+                    .release(
+                        name: .release,
+                        settings: [
+                            "CODE_SIGN_IDENTITY": "Developer ID Application",
+                            "CODE_SIGN_STYLE": "Manual",
+                            "OTHER_CODE_SIGN_FLAGS": "--options runtime --timestamp",
+                        ]
+                    ),
+                ]
+            )
         ),
         .target(
             name: "AgentLimitsTests",
