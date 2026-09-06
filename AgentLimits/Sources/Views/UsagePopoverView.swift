@@ -2,95 +2,129 @@ import AppKit
 import SwiftUI
 
 struct UsagePopoverView: View {
-    @Environment(UsageMonitor.self) private var claudeMonitor
-    @Environment(CodexUsageMonitor.self) private var codexMonitor
-    @Environment(AntigravityUsageMonitor.self) private var antigravityMonitor
+    @Environment(ProviderCoordinator.self) private var coordinator
     @Environment(LoginItemManager.self) private var loginItemManager
+    @Environment(AppWindowPresenter.self) private var windowPresenter
 
     var body: some View {
-        @Bindable var loginItemManager = loginItemManager
-
         VStack(alignment: .leading, spacing: 16) {
-            providerSection(title: "Claude Code", lastUpdated: claudeMonitor.lastUpdated) {
-                if let usage = claudeMonitor.usage {
-                    ForEach(usage.limits) { limit in
-                        UsageProgressRow(limit: limit)
+            if coordinator.visibleProviders.isEmpty {
+                Text("Nessun provider selezionato — abilitane uno in Impostazioni")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ForEach(Array(coordinator.visibleProviders.enumerated()), id: \.element) { index, provider in
+                    if index > 0 {
+                        Divider()
                     }
-                } else if let error = claudeMonitor.lastError {
-                    Text(errorMessage(for: error))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Caricamento…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    providerContent(for: provider)
                 }
             }
 
             Divider()
-
-            providerSection(title: "Codex", lastUpdated: codexMonitor.lastUpdated) {
-                if let usage = codexMonitor.usage {
-                    ForEach(usage.rows) { row in
-                        UsageProgressRow(limit: row)
-                    }
-                } else if let error = codexMonitor.lastError {
-                    Text(errorMessage(for: error))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Caricamento…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider()
-
-            providerSection(title: "Antigravity (Gemini)", lastUpdated: antigravityMonitor.lastUpdated) {
-                if let usage = antigravityMonitor.usage {
-                    ForEach(usage.rows) { row in
-                        UsageProgressRow(limit: row)
-                    }
-                } else if let error = antigravityMonitor.lastError {
-                    Text(errorMessage(for: error))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Caricamento…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider()
-
-            Toggle("Avvia al login", isOn: $loginItemManager.isEnabled)
-                .toggleStyle(.switch)
 
             HStack {
                 Button("Aggiorna ora") {
                     Task {
-                        await claudeMonitor.refresh()
-                        await codexMonitor.refresh()
-                        await antigravityMonitor.refresh()
+                        await coordinator.refreshVisible()
                     }
                 }
-                .disabled(claudeMonitor.isRefreshing || codexMonitor.isRefreshing || antigravityMonitor.isRefreshing)
+                .disabled(coordinator.isRefreshingVisible)
 
                 Spacer()
 
-                Button("Esci") {
-                    NSApplication.shared.terminate(nil)
-                }
+                settingsMenu
             }
         }
         .padding(16)
         .frame(width: 300)
         .task {
-            await claudeMonitor.refresh()
-            await codexMonitor.refresh()
-            await antigravityMonitor.refresh()
+            await coordinator.refreshVisible()
+        }
+    }
+
+    @ViewBuilder
+    private var settingsMenu: some View {
+        Menu {
+            Button("Impostazioni") {
+                closePopoverThenPresent {
+                    windowPresenter.showSettings(coordinator: coordinator, loginItemManager: loginItemManager)
+                }
+            }
+            Button("About") {
+                closePopoverThenPresent {
+                    windowPresenter.showAbout()
+                }
+            }
+            Button("Esci") {
+                NSApplication.shared.terminate(nil)
+            }
+        } label: {
+            Image(systemName: "gearshape")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("Impostazioni e altre azioni")
+    }
+
+    private func closePopoverThenPresent(_ present: @escaping () -> Void) {
+        NSApp.keyWindow?.close()
+        present()
+    }
+
+    @ViewBuilder
+    private func providerContent(for provider: UsageProvider) -> some View {
+        switch provider {
+        case .claudeCode:
+            providerSection(title: provider.displayName, lastUpdated: coordinator.claude.lastUpdated) {
+                if let usage = coordinator.claude.usage {
+                    ForEach(usage.limits) { limit in
+                        UsageProgressRow(limit: limit)
+                    }
+                } else if let error = coordinator.claude.lastError {
+                    Text(errorMessage(for: error))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Caricamento…")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        case .codex:
+            providerSection(title: provider.displayName, lastUpdated: coordinator.codex.lastUpdated) {
+                if let usage = coordinator.codex.usage {
+                    ForEach(usage.rows) { row in
+                        UsageProgressRow(limit: row)
+                    }
+                } else if let error = coordinator.codex.lastError {
+                    Text(errorMessage(for: error))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Caricamento…")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        case .antigravity:
+            providerSection(title: provider.displayName, lastUpdated: coordinator.antigravity.lastUpdated) {
+                if let usage = coordinator.antigravity.usage {
+                    ForEach(usage.rows) { row in
+                        UsageProgressRow(limit: row)
+                    }
+                } else if let error = coordinator.antigravity.lastError {
+                    Text(errorMessage(for: error))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Caricamento…")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
