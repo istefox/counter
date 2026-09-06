@@ -23,7 +23,7 @@ struct UsageLimitScope: Codable {
 /// One row of `UsageResponse.limits`. The API exposes this as a flat, self-describing
 /// array (kind/group/scope) rather than fixed fields per model, so new model-scoped
 /// limits (e.g. a weekly cap for "Fable") show up automatically without a schema change.
-struct UsageLimit: Codable, Identifiable {
+struct UsageLimit: Codable, Identifiable, UsageLimitDisplayable {
     let kind: String
     let group: String?
     let percent: Double

@@ -1,5 +1,5 @@
 import XCTest
-@testable import ClaudeLimits
+@testable import AgentLimits
 
 final class UsageModelsTests: XCTestCase {
     func testDecodesRealWorldLimitsArrayShape() throws {

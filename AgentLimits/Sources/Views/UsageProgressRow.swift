@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct UsageProgressRow: View {
-    let limit: UsageLimit
+struct UsageProgressRow<Limit: UsageLimitDisplayable>: View {
+    let limit: Limit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
