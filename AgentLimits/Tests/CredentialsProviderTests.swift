@@ -1,5 +1,5 @@
 import XCTest
-@testable import ClaudeLimits
+@testable import AgentLimits
 
 private struct FailingSource: CredentialsSource {
     func readAccessToken() throws -> String {

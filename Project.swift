@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let project = Project(
-    name: "ClaudeLimits",
+    name: "AgentLimits",
     organizationName: "it.stefer",
     settings: .settings(
         base: [
@@ -11,10 +11,10 @@ let project = Project(
     ),
     targets: [
         .target(
-            name: "ClaudeLimits",
+            name: "AgentLimits",
             destinations: .macOS,
             product: .app,
-            bundleId: "it.stefer.ClaudeLimits",
+            bundleId: "it.stefer.AgentLimits",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .extendingDefault(
                 with: [
@@ -24,19 +24,19 @@ let project = Project(
                     "NSHumanReadableCopyright": "Stefano Ferri",
                 ]
             ),
-            sources: ["ClaudeLimits/Sources/**"],
-            resources: ["ClaudeLimits/Resources/**"],
+            sources: ["AgentLimits/Sources/**"],
+            resources: ["AgentLimits/Resources/**"],
             dependencies: []
         ),
         .target(
-            name: "ClaudeLimitsTests",
+            name: "AgentLimitsTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "it.stefer.ClaudeLimitsTests",
+            bundleId: "it.stefer.AgentLimitsTests",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
-            sources: ["ClaudeLimits/Tests/**"],
-            dependencies: [.target(name: "ClaudeLimits")]
+            sources: ["AgentLimits/Tests/**"],
+            dependencies: [.target(name: "AgentLimits")]
         ),
     ]
 )
