@@ -28,21 +28,8 @@ struct AntigravityCascadeModelConfigData: Decodable {
     let clientModelConfigs: [AntigravityModelConfig]?
 }
 
-struct AntigravityPlanInfo: Decodable {
-    let planName: String?
-    let monthlyPromptCredits: Int?
-    let monthlyFlowCredits: Int?
-}
-
-struct AntigravityPlanStatus: Decodable {
-    let planInfo: AntigravityPlanInfo?
-    let availablePromptCredits: Int?
-    let availableFlowCredits: Int?
-}
-
 struct AntigravityUserStatus: Decodable {
     let cascadeModelConfigData: AntigravityCascadeModelConfigData?
-    let planStatus: AntigravityPlanStatus?
 }
 
 struct AntigravityUsageRow: Identifiable, UsageLimitDisplayable {
@@ -53,44 +40,31 @@ struct AntigravityUsageRow: Identifiable, UsageLimitDisplayable {
 }
 
 extension AntigravityUserStatus {
-    /// One row per model that reports a quota fraction, plus account-level credit
-    /// rows when the plan tracks them. Models without `quotaInfo`/`remainingFraction`
-    /// are skipped — same "ignore windows without data" behavior as Codex's rows.
+    /// A single aggregated "Gemini" row, not one row per model. Live inspection of
+    /// `GetUserStatus` (this session, real account) confirmed every entry in
+    /// `clientModelConfigs` — Gemini variants, Claude-via-Antigravity, GPT-OSS alike —
+    /// shares one account-level quota pool: identical `remainingFraction`/`resetTime`
+    /// across the board. So there is no per-model data to preserve, and no second,
+    /// shorter-duration window exists anywhere in the payload to show alongside it.
+    /// Non-Gemini models and the generic prompt/flow credit counters are intentionally
+    /// left out: the user only wants the Gemini-specific total.
     var rows: [AntigravityUsageRow] {
-        let modelRows = (cascadeModelConfigData?.clientModelConfigs ?? [])
-            .compactMap { config -> AntigravityUsageRow? in
-                guard let fraction = config.quotaInfo?.remainingFraction else { return nil }
-                let title = config.label ?? config.modelOrAlias?.model ?? "Modello sconosciuto"
-                return AntigravityUsageRow(
-                    id: "antigravity-\(config.modelOrAlias?.model ?? title)",
-                    displayTitle: title,
-                    percent: (1 - fraction) * 100,
-                    resetsAt: config.quotaInfo?.resetTimeDate
-                )
-            }
+        let geminiConfigs = (cascadeModelConfigData?.clientModelConfigs ?? [])
+            .filter { ($0.label ?? "").hasPrefix("Gemini") }
 
-        let creditRows = [
-            creditRow(
-                id: "antigravity-prompt-credits",
-                title: "Crediti prompt",
-                available: planStatus?.availablePromptCredits,
-                monthly: planStatus?.planInfo?.monthlyPromptCredits
-            ),
-            creditRow(
-                id: "antigravity-flow-credits",
-                title: "Crediti flow",
-                available: planStatus?.availableFlowCredits,
-                monthly: planStatus?.planInfo?.monthlyFlowCredits
-            ),
-        ].compactMap { $0 }
+        guard let fraction = geminiConfigs.compactMap(\.quotaInfo?.remainingFraction).min() else {
+            return []
+        }
+        let resetsAt = geminiConfigs.compactMap(\.quotaInfo?.resetTimeDate).first
 
-        return modelRows + creditRows
-    }
-
-    private func creditRow(id: String, title: String, available: Int?, monthly: Int?) -> AntigravityUsageRow? {
-        guard let available, let monthly, monthly > 0 else { return nil }
-        let usedPercent = (1 - Double(available) / Double(monthly)) * 100
-        return AntigravityUsageRow(id: id, displayTitle: title, percent: usedPercent, resetsAt: nil)
+        return [
+            AntigravityUsageRow(
+                id: "antigravity-gemini",
+                displayTitle: "Gemini",
+                percent: (1 - fraction) * 100,
+                resetsAt: resetsAt
+            )
+        ]
     }
 }
 
