@@ -1,0 +1,12 @@
+# Tuist-generated (regenerate with `tuist generate`)
+*.xcodeproj/
+*.xcworkspace/
+Derived/
+.build/
+.tuist-bin/
+.tuist-cache/
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
