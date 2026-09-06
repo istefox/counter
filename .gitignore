@@ -10,3 +10,4 @@ Derived/
 xcuserdata/
 *.xcuserstate
 DerivedData/
+.claude/.triage-fix-last-*.json
