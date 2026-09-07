@@ -10,6 +10,24 @@ struct SettingsWindowView: View {
         TabView {
             Form {
                 Toggle("Avvia al login", isOn: $loginItemManager.isEnabled)
+                    .disabled(!loginItemManager.canRegisterLoginItem)
+
+                if !loginItemManager.canRegisterLoginItem {
+                    Text("Sposta AgentLimits in /Applications per attivare l'avvio al login.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                if loginItemManager.hasStaleRegistration {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("È registrata una voce di avvio al login che punta a una copia non installata di AgentLimits.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button("Rimuovi voce di login errata") {
+                            loginItemManager.removeStaleRegistration()
+                        }
+                    }
+                }
             }
             .padding(20)
             .tabItem {
