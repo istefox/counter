@@ -1,6 +1,6 @@
-## Status (2026-09-06)
+## Status (2026-09-07)
 **Branch:** emdash/slimy-jokes-juggle-rl3y8
-**Last commit:** ad87fb9 — chore(build): add app icon and enable notarized Release signing
-**In progress:** Settings menu feature (PR #5) merged to main. On top of it: new AppIcon asset, explicit entitlements (get-task-allow=false), Release-configuration Developer ID signing + hardened runtime wired in Project.swift. Manually verified: Release build signed, notarized (Accepted), stapled, and installed at /Applications/AgentLimits.app.
-**Next:** This commit (ad87fb9) not yet pushed/PR'd. If pushing, note CI only builds Debug today (see build-and-test workflow) — Release signing/notarization was verified manually on this machine, not in CI.
+**Last commit:** 086f7e4 — fix(app): stabilize debug code signing and guard login-item registration
+**In progress:** Fixed the recurring keychain "Always Allow" prompt: Debug builds now sign with the Apple Development cert instead of ad-hoc (stable designated requirement across rebuilds), and LoginItemManager blocks/flags login-item registration from any bundle outside /Applications.
+**Next:** Not pushed/PR'd yet. On this machine, still needs the one-time manual repair: turn off "Avvia al login" in the running Debug build, quit it, launch /Applications/AgentLimits.app, turn login-item back on there, accept the keychain prompt once.
 **Open decisions:** none.
