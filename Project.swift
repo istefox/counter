@@ -34,6 +34,13 @@ let project = Project(
                     "DEVELOPMENT_TEAM": "T7H24G7BFW",
                 ],
                 configurations: [
+                    .debug(
+                        name: .debug,
+                        settings: [
+                            "CODE_SIGN_IDENTITY": "Apple Development",
+                            "CODE_SIGN_STYLE": "Automatic",
+                        ]
+                    ),
                     .release(
                         name: .release,
                         settings: [
