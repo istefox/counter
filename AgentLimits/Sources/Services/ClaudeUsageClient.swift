@@ -13,9 +13,15 @@ enum UsageError: Error, Equatable {
 actor ClaudeUsageClient {
     private static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     private static let maxNetworkRetries = 3
+    // Keeps the polling loop from re-triggering a Keychain access prompt every 5 minutes;
+    // a stale-but-still-valid cached token is fine because a 401 clears it immediately below.
+    private static let tokenCacheTTL: TimeInterval = 1800
 
     private let session: URLSession
     private let credentialsProvider: CredentialsProvider
+
+    private var cachedToken: String?
+    private var cachedTokenExpiresAt: Date?
 
     init(
         session: URLSession = .shared,
@@ -28,7 +34,7 @@ actor ClaudeUsageClient {
     func fetchUsage() async throws -> UsageResponse {
         let token: String
         do {
-            token = try credentialsProvider.currentAccessToken()
+            token = try currentAccessToken()
         } catch {
             throw UsageError.notAuthenticated
         }
@@ -47,6 +53,10 @@ actor ClaudeUsageClient {
             do {
                 return try await performRequest(request)
             } catch let error as UsageError {
+                if case .tokenExpired = error {
+                    cachedToken = nil
+                    cachedTokenExpiresAt = nil
+                }
                 // Non-retryable: auth/rate-limit errors must surface immediately.
                 throw error
             } catch {
@@ -59,6 +69,17 @@ actor ClaudeUsageClient {
 
         _ = lastNetworkError
         throw UsageError.network
+    }
+
+    private func currentAccessToken() throws -> String {
+        if let cachedToken, let expiresAt = cachedTokenExpiresAt, Date() < expiresAt {
+            return cachedToken
+        }
+
+        let token = try credentialsProvider.currentAccessToken()
+        cachedToken = token
+        cachedTokenExpiresAt = Date().addingTimeInterval(Self.tokenCacheTTL)
+        return token
     }
 
     private func performRequest(_ request: URLRequest) async throws -> UsageResponse {
