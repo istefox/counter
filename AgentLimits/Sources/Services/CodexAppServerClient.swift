@@ -2,6 +2,7 @@ import Foundation
 
 enum CodexUsageError: Error, Equatable {
     case codexNotInstalled
+    case notAuthenticated
     case processFailed
     case decoding
     case timeout
@@ -58,6 +59,8 @@ actor CodexAppServerClient {
             ]], to: stdin)
             try Self.send(["method": "initialized", "params": NSNull()], to: stdin)
             try Self.send(["id": 2, "method": "account/rateLimits/read", "params": NSNull()], to: stdin)
+            // Only awaited when the rate-limit read fails, to tell "logged out" apart from other errors.
+            try Self.send(["id": 3, "method": "account/read", "params": ["refreshToken": false]], to: stdin)
         } catch {
             throw CodexUsageError.processFailed
         }
@@ -65,6 +68,14 @@ actor CodexAppServerClient {
         do {
             let responseData = try await Self.withTimeout(Self.requestTimeout) {
                 try await collector.waitForResponse(id: 2)
+            }
+            if Self.isErrorResponse(responseData) {
+                let accountData = try await Self.withTimeout(Self.requestTimeout) {
+                    try await collector.waitForResponse(id: 3)
+                }
+                throw Self.requiresLogin(accountResponse: accountData)
+                    ? CodexUsageError.notAuthenticated
+                    : CodexUsageError.processFailed
             }
             return try JSONDecoder()
                 .decode(JSONRPCResultEnvelope<CodexAccountRateLimits>.self, from: responseData)
@@ -76,6 +87,25 @@ actor CodexAppServerClient {
         } catch {
             throw CodexUsageError.timeout
         }
+    }
+
+    /// Verified live: when logged out, `account/rateLimits/read` answers with a JSON-RPC
+    /// `error` ("codex account authentication required to read rate limits") instead of a result.
+    static func isErrorResponse(_ data: Data) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+        return object["error"] != nil
+    }
+
+    /// `account/read` returns `{"account": null, "requiresOpenaiAuth": true}` when no
+    /// credentials are stored or they can no longer be used.
+    static func requiresLogin(accountResponse data: Data) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let result = object["result"] as? [String: Any]
+        else { return false }
+        let hasAccount = result["account"].map { !($0 is NSNull) } ?? false
+        return !hasAccount && (result["requiresOpenaiAuth"] as? Bool ?? true)
     }
 
     private static func send(_ object: [String: Any], to handle: FileHandle) throws {
@@ -102,59 +132,8 @@ actor CodexAppServerClient {
         }
     }
 
-    /// A GUI app launched via LaunchServices (Dock/Finder double-click, `open`) inherits a
-    /// minimal PATH that does not include a shell's `.zshrc`/`.zprofile` additions — where
-    /// `codex` commonly lives (e.g. `~/.local/bin`, mise/asdf shims, nvm). `ProcessInfo`'s
-    /// PATH alone is therefore not enough; common user-local install locations are checked
-    /// first, and as a last resort a login shell is asked to resolve it the way a terminal
-    /// would (`command -v`), covering PATH customizations this app cannot otherwise predict.
     private static func resolveCodexExecutablePath() -> String? {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let commonPaths = [
-            "\(home)/.local/bin/codex",
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            "\(home)/.local/share/mise/shims/codex",
-        ]
-        for path in commonPaths where FileManager.default.isExecutableFile(atPath: path) {
-            return path
-        }
-
-        if let pathEnv = ProcessInfo.processInfo.environment["PATH"] {
-            for dir in pathEnv.split(separator: ":") {
-                let candidate = "\(dir)/codex"
-                if FileManager.default.isExecutableFile(atPath: candidate) {
-                    return candidate
-                }
-            }
-        }
-
-        return resolveViaLoginShell()
-    }
-
-    private static func resolveViaLoginShell() -> String? {
-        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: shell)
-        process.arguments = ["-l", "-c", "command -v codex"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let path = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty,
-            FileManager.default.isExecutableFile(atPath: path)
-        else { return nil }
-        return path
+        CLIExecutableLocator.resolve("codex")
     }
 }
 
