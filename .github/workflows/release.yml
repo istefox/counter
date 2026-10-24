@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,12 +24,17 @@ jobs:
       - name: Install Tuist
         run: brew install --cask tuist
 
-      - name: Check tag matches app version
+      # A manual run releases the version in Project.swift and creates its tag.
+      - name: Resolve release tag
         run: |
           app_version=$(grep -o '"CFBundleShortVersionString": "[^"]*"' Project.swift | cut -d'"' -f4)
-          if [ "v${app_version}" != "${GITHUB_REF_NAME}" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "TAG=v${app_version}" >> "$GITHUB_ENV"
+          elif [ "v${app_version}" != "${GITHUB_REF_NAME}" ]; then
             echo "Tag ${GITHUB_REF_NAME} does not match CFBundleShortVersionString ${app_version}"
             exit 1
+          else
+            echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
           fi
 
       # No Developer ID certificate on the runner: the Release build is ad-hoc signed.
@@ -45,11 +51,11 @@ jobs:
       - name: Package
         run: |
           ditto -c -k --keepParent build/Build/Products/Release/AgentLimits.app \
-            "AgentLimits-${GITHUB_REF_NAME}.zip"
+            "AgentLimits-${TAG}.zip"
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" "AgentLimits-${GITHUB_REF_NAME}.zip" \
-            --title "AgentLimits ${GITHUB_REF_NAME}" --generate-notes
+          gh release create "${TAG}" "AgentLimits-${TAG}.zip" \
+            --target "${GITHUB_SHA}" --title "AgentLimits ${TAG}" --generate-notes
