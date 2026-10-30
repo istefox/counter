@@ -10,7 +10,6 @@ struct SettingsWindowView: View {
         TabView {
             Form {
                 Toggle("Avvia al login", isOn: $loginItemManager.isEnabled)
-                    .disabled(!loginItemManager.canRegisterLoginItem)
 
                 if !loginItemManager.canRegisterLoginItem {
                     Text("Sposta AgentLimits in /Applications per attivare l'avvio al login.")

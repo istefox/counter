@@ -10,6 +10,13 @@ enum KeychainError: Error, Equatable {
     case invalidCredentials
 }
 
+/// Reads the Claude Code OAuth credentials through `/usr/bin/security` rather than `SecItemCopyMatching`.
+///
+/// Claude Code rewrites this item with `security add-generic-password -U` on every token refresh, which
+/// resets the item's partition list to `apple-tool:` and drops any app previously granted "Always Allow".
+/// Reading in-process therefore re-triggers the Keychain password prompt after each refresh. Going through
+/// the same `security` tool that owns the item keeps the read inside the `apple-tool:` partition, so it
+/// never prompts.
 struct KeychainCredentialsReader: CredentialsSource {
     static let serviceName = "Claude Code-credentials"
 

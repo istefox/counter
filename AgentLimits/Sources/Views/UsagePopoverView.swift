@@ -52,6 +52,15 @@ struct UsagePopoverView: View {
                     windowPresenter.showSettings(coordinator: coordinator, loginItemManager: loginItemManager)
                 }
             }
+            Divider()
+            ForEach(coordinator.visibleProviders.filter { coordinator.supportsLogin($0) }) { provider in
+                Button("Accedi a \(provider.displayName)…") {
+                    closePopoverThenPresent {
+                        coordinator.startLogin(for: provider)
+                    }
+                }
+            }
+            Divider()
             Button("About") {
                 closePopoverThenPresent {
                     windowPresenter.showAbout()
@@ -92,6 +101,7 @@ struct UsagePopoverView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                loginPrompt(for: provider, hasStaleUsage: coordinator.claude.usage != nil)
             }
         case .codex:
             providerSection(title: provider.displayName, lastUpdated: coordinator.codex.lastUpdated) {
@@ -108,6 +118,7 @@ struct UsagePopoverView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                loginPrompt(for: provider, hasStaleUsage: coordinator.codex.usage != nil)
             }
         case .antigravity:
             providerSection(title: provider.displayName, lastUpdated: coordinator.antigravity.lastUpdated) {
@@ -125,6 +136,33 @@ struct UsagePopoverView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func loginPrompt(for provider: UsageProvider, hasStaleUsage: Bool) -> some View {
+        if coordinator.pendingLogins.contains(provider) {
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("In attesa del login nel Terminale…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if coordinator.needsLogin(provider) {
+            if hasStaleUsage {
+                Text("Sessione scaduta: i dati mostrati non sono aggiornati.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Button("Accedi a \(provider.displayName)…") {
+                coordinator.startLogin(for: provider)
+            }
+        }
+        if coordinator.loginLaunchError == provider {
+            Text("Impossibile aprire il Terminale per il login.")
+                .font(.caption)
+                .foregroundStyle(.red)
         }
     }
 
@@ -152,9 +190,9 @@ struct UsagePopoverView: View {
     private func errorMessage(for error: UsageError) -> String {
         switch error {
         case .notAuthenticated:
-            return "Nessuna sessione Claude Code trovata. Esegui il login dalla CLI."
+            return "Nessuna sessione Claude Code trovata."
         case .tokenExpired:
-            return "Sessione scaduta. Esegui di nuovo il login dalla CLI Claude Code."
+            return "Sessione Claude Code scaduta."
         case .tokenAwaitingRefresh:
             return "Token Claude Code scaduto: si rinnova da solo al prossimo uso di claude."
         case .forbidden:
@@ -174,6 +212,8 @@ struct UsagePopoverView: View {
         switch error {
         case .codexNotInstalled:
             return "CLI Codex non trovata nel PATH."
+        case .notAuthenticated:
+            return "Nessuna sessione Codex attiva."
         case .processFailed:
             return "Impossibile avviare Codex app-server."
         case .decoding:
