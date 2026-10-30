@@ -3,6 +3,8 @@ import Foundation
 enum UsageError: Error, Equatable {
     case notAuthenticated
     case tokenExpired
+    /// The stored token is past its expiry; Claude Code renews it the next time it runs.
+    case tokenAwaitingRefresh
     case forbidden
     case rateLimited
     case decoding
@@ -35,6 +37,8 @@ actor ClaudeUsageClient {
         let token: String
         do {
             token = try currentAccessToken()
+        } catch CredentialsError.expired {
+            throw UsageError.tokenAwaitingRefresh
         } catch {
             throw UsageError.notAuthenticated
         }
@@ -72,14 +76,18 @@ actor ClaudeUsageClient {
     }
 
     private func currentAccessToken() throws -> String {
-        if let cachedToken, let expiresAt = cachedTokenExpiresAt, Date() < expiresAt {
+        let now = Date()
+        if let cachedToken, let expiresAt = cachedTokenExpiresAt, now < expiresAt {
             return cachedToken
         }
 
-        let token = try credentialsProvider.currentAccessToken()
-        cachedToken = token
-        cachedTokenExpiresAt = Date().addingTimeInterval(Self.tokenCacheTTL)
-        return token
+        let token = try credentialsProvider.currentAccessToken(now: now)
+        // Never cache past the token's own expiry, so the next poll re-reads the Keychain
+        // and picks up the token Claude Code refreshed meanwhile.
+        let ttlExpiry = now.addingTimeInterval(Self.tokenCacheTTL)
+        cachedToken = token.value
+        cachedTokenExpiresAt = token.expiresAt.map { min($0, ttlExpiry) } ?? ttlExpiry
+        return token.value
     }
 
     private func performRequest(_ request: URLRequest) async throws -> UsageResponse {

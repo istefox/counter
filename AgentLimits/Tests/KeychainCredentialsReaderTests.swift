@@ -9,11 +9,18 @@ final class KeychainCredentialsReaderTests: XCTestCase {
             return Data("{\"claudeAiOauth\":{\"accessToken\":\"test-token\"}}\n".utf8)
         }
 
-        XCTAssertEqual(try reader.readAccessToken(), "test-token")
+        XCTAssertEqual(try reader.readAccessToken(), ClaudeAccessToken(value: "test-token"))
         XCTAssertEqual(arguments, [
             "find-generic-password", "-s", "Claude Code-credentials",
             "-a", NSUserName(), "-w"
         ])
+    }
+
+    func testDecodesExpiryFromEpochMilliseconds() throws {
+        let reader = KeychainCredentialsReader { _ in
+            Data("{\"claudeAiOauth\":{\"accessToken\":\"t\",\"expiresAt\":1700000000000}}".utf8)
+        }
+        XCTAssertEqual(try reader.readAccessToken().expiresAt, Date(timeIntervalSince1970: 1_700_000_000))
     }
 
     func testRejectsMalformedMissingAndEmptyCredentialsWithoutExposingPayload() {
@@ -36,7 +43,7 @@ final class KeychainCredentialsReaderTests: XCTestCase {
         for failure in [KeychainError.unavailable(status: 44), .timeout, .launchFailed] {
             let reader = KeychainCredentialsReader { _ in throw failure }
             let provider = CredentialsProvider(sources: [reader, FallbackCredentialsSource()])
-            XCTAssertEqual(try provider.currentAccessToken(), "fallback-token")
+            XCTAssertEqual(try provider.currentAccessToken().value, "fallback-token")
         }
     }
 }
@@ -123,5 +130,5 @@ final class CredentialCommandRunnerTests: XCTestCase {
 }
 
 private struct FallbackCredentialsSource: CredentialsSource {
-    func readAccessToken() throws -> String { "fallback-token" }
+    func readAccessToken() throws -> ClaudeAccessToken { ClaudeAccessToken(value: "fallback-token") }
 }

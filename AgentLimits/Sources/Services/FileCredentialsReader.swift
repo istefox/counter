@@ -6,7 +6,7 @@ enum FileCredentialsError: Error {
 }
 
 struct FileCredentialsReader: CredentialsSource {
-    func readAccessToken() throws -> String {
+    func readAccessToken() throws -> ClaudeAccessToken {
         let configDir = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"]
             .map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
@@ -19,6 +19,6 @@ struct FileCredentialsReader: CredentialsSource {
 
         let data = try Data(contentsOf: credentialsURL)
         let decoded = try JSONDecoder().decode(ClaudeCredentialsFile.self, from: data)
-        return decoded.claudeAiOauth.accessToken
+        return ClaudeAccessToken(decoded.claudeAiOauth)
     }
 }

@@ -3,9 +3,34 @@ import Foundation
 struct ClaudeCredentialsFile: Codable {
     struct OAuth: Codable {
         let accessToken: String
+        /// Epoch milliseconds. Claude Code refreshes the token only while it runs.
+        let expiresAt: Double?
     }
 
     let claudeAiOauth: OAuth
+}
+
+struct ClaudeAccessToken: Equatable {
+    let value: String
+    /// nil when the source does not say; such a token is treated as valid.
+    let expiresAt: Date?
+
+    init(value: String, expiresAt: Date? = nil) {
+        self.value = value
+        self.expiresAt = expiresAt
+    }
+
+    init(_ oauth: ClaudeCredentialsFile.OAuth) {
+        self.init(
+            value: oauth.accessToken,
+            expiresAt: oauth.expiresAt.map { Date(timeIntervalSince1970: $0 / 1000) }
+        )
+    }
+
+    func isExpired(at now: Date) -> Bool {
+        guard let expiresAt else { return false }
+        return expiresAt <= now
+    }
 }
 
 struct UsageLimitScope: Codable {

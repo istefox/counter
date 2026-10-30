@@ -21,7 +21,7 @@ struct KeychainCredentialsReader: CredentialsSource {
         self.runCommand = runCommand
     }
 
-    func readAccessToken() throws -> String {
+    func readAccessToken() throws -> ClaudeAccessToken {
         // Claude Code updates this item through security, which can reset its
         // partition list to apple-tool:. Use that same trusted system executable
         // instead of depending on a persistent grant to the AgentLimits binary.
@@ -38,7 +38,7 @@ struct KeychainCredentialsReader: CredentialsSource {
             // Do not propagate decoder diagnostics that could include credential data.
             throw KeychainError.invalidCredentials
         }
-        return decoded.claudeAiOauth.accessToken
+        return ClaudeAccessToken(decoded.claudeAiOauth)
     }
 }
 
