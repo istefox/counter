@@ -40,7 +40,7 @@ enum CLILoginLauncher {
         }
         let executable = CLIExecutableLocator.resolve(
             command.executableName,
-            extraPaths: provider == .claudeCode ? claudeExtraPaths : []
+            extraPaths: provider == .claudeCode ? CLIExecutableLocator.claudeExtraPaths : []
         )
         let script = makeScript(for: command, resolvedExecutable: executable)
 
@@ -84,10 +84,5 @@ enum CLILoginLauncher {
 
     static func shellQuoted(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
-
-    private static var claudeExtraPaths: [String] {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return ["\(home)/.claude/local/claude"]
     }
 }

@@ -3,8 +3,10 @@ import Foundation
 enum UsageError: Error, Equatable {
     case notAuthenticated
     case tokenExpired
-    /// The stored token is past its expiry; Claude Code renews it the next time it runs.
+    /// The stored token is past its expiry and asking Claude Code to renew it did not work (yet).
     case tokenAwaitingRefresh
+    /// The stored token is past its expiry and no `claude` CLI was found to renew it.
+    case tokenRefreshUnavailable
     case forbidden
     case rateLimited
     case decoding
@@ -21,16 +23,19 @@ actor ClaudeUsageClient {
 
     private let session: URLSession
     private let credentialsProvider: CredentialsProvider
+    private let tokenRefresher: ClaudeTokenRefreshing
 
     private var cachedToken: String?
     private var cachedTokenExpiresAt: Date?
 
     init(
         session: URLSession = .shared,
-        credentialsProvider: CredentialsProvider = CredentialsProvider()
+        credentialsProvider: CredentialsProvider = CredentialsProvider(),
+        tokenRefresher: ClaudeTokenRefreshing = ClaudeTokenRefresher()
     ) {
         self.session = session
         self.credentialsProvider = credentialsProvider
+        self.tokenRefresher = tokenRefresher
     }
 
     func fetchUsage() async throws -> UsageResponse {
@@ -38,7 +43,9 @@ actor ClaudeUsageClient {
         do {
             token = try currentAccessToken()
         } catch CredentialsError.expired {
-            throw UsageError.tokenAwaitingRefresh
+            // Only an expired token is handed to Claude Code for renewal; a missing login
+            // or a revoked token (401 below) still needs the user to sign in.
+            token = try await renewedAccessToken()
         } catch {
             throw UsageError.notAuthenticated
         }
@@ -73,6 +80,18 @@ actor ClaudeUsageClient {
 
         _ = lastNetworkError
         throw UsageError.network
+    }
+
+    private func renewedAccessToken() async throws -> String {
+        switch await tokenRefresher.refreshIfPossible() {
+        case .renewed:
+            guard let renewed = try? currentAccessToken() else { throw UsageError.tokenAwaitingRefresh }
+            return renewed
+        case .failed:
+            throw UsageError.tokenAwaitingRefresh
+        case .cliMissing:
+            throw UsageError.tokenRefreshUnavailable
+        }
     }
 
     private func currentAccessToken() throws -> String {

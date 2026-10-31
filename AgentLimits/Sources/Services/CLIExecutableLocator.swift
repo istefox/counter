@@ -8,6 +8,12 @@ import Foundation
 /// way a terminal would (`command -v`), covering PATH customizations this app cannot
 /// otherwise predict.
 enum CLIExecutableLocator {
+    /// Where Claude Code's own local installer puts the binary, besides the common paths.
+    static var claudeExtraPaths: [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return ["\(home)/.claude/local/claude"]
+    }
+
     static func resolve(_ name: String, extraPaths: [String] = []) -> String? {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let commonPaths = extraPaths + [

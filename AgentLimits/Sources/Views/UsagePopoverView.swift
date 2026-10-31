@@ -194,7 +194,9 @@ struct UsagePopoverView: View {
         case .tokenExpired:
             return "Sessione Claude Code scaduta."
         case .tokenAwaitingRefresh:
-            return "Token Claude Code scaduto: si rinnova da solo al prossimo uso di claude."
+            return "Token Claude Code scaduto: rinnovo automatico non riuscito, riprovo tra qualche minuto."
+        case .tokenRefreshUnavailable:
+            return "Token Claude Code scaduto: per rinnovarlo da solo serve la CLI claude, che non è stata trovata."
         case .forbidden:
             return "Il tuo account non ha accesso ai dati di utilizzo."
         case .rateLimited:
