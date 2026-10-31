@@ -20,8 +20,8 @@ let project = Project(
             infoPlist: .extendingDefault(
                 with: [
                     "LSUIElement": true,
-                    "CFBundleShortVersionString": "0.2.1",
-                    "CFBundleVersion": "3",
+                    "CFBundleShortVersionString": "0.2.2",
+                    "CFBundleVersion": "4",
                     "NSHumanReadableCopyright": "Stefano Ferri",
                 ]
             ),
